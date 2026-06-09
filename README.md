@@ -36,7 +36,9 @@ FTP-3678 To Do | 🌳 feat/FTP-3678-zoom-venue-image | +0/-0 · 0m
 
 ![Two-line wrap in a narrow terminal](docs/narrow-terminal.png)
 
-The width comes from the `COLUMNS` environment variable, which Claude Code sets before each invocation (**requires Claude Code ≥ 2.1.153**). When `COLUMNS` is unset the line is never split. Wide terminals are unaffected — everything stays on one row.
+The width comes from the `COLUMNS` environment variable, which Claude Code sets to the current terminal size before each invocation (**requires Claude Code ≥ 2.1.153**). When `COLUMNS` is unset the line is never split. Wide terminals are unaffected — everything stays on one row.
+
+> **Resize and `refreshInterval`.** Claude Code re-runs the status line on events (new message, `/compact`, mode change) and on the `refreshInterval` timer — but **not** on terminal resize. So after you resize the window the new width is only picked up on the next of those. Set a short `refreshInterval` (e.g. `2`) if you want the wrap to track resizing closely; the foreground render is local-only and cheap, so a low interval is fine.
 
 ## How the MR and Asana segments work (non-blocking)
 
