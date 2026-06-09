@@ -52,6 +52,34 @@ func isAlpha(s string) bool {
 	return true
 }
 
+// join concatenates the non-empty segments with the separator, dropping blanks
+// so an absent segment leaves no stray " | ".
+func join(segs ...string) string {
+	kept := segs[:0]
+	for _, s := range segs {
+		if s != "" {
+			kept = append(kept, s)
+		}
+	}
+	return strings.Join(kept, sep)
+}
+
+// assemble lays out the computed segments. It normally returns one line; when
+// cols is known and that line would overflow the terminal, the task (asana),
+// branch (git) and session (changes) segments wrap onto a second row — task
+// first, before the branch name — so the long branch is isolated off the first
+// row in a narrow window. The remaining segments — model, MR/PR, context, rate
+// limits — stay on the first row.
+func assemble(model, git, asana, mr, pr, ctx, changes, rl string, cols int) string {
+	oneLine := join(model, git, asana, mr, pr, ctx, changes, rl)
+	if cols > 0 && visibleWidth(oneLine) > cols {
+		if line2 := join(asana, git, changes); line2 != "" {
+			return join(model, mr, pr, ctx, rl) + "\n" + line2
+		}
+	}
+	return oneLine
+}
+
 // rlColor: red ≥90% used, yellow ≥70%, else dim.
 func rlColor(pct float64) string {
 	switch {

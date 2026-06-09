@@ -66,7 +66,7 @@ func readCache(key string) *Cache {
 // writeCache writes the snapshot atomically (temp file + rename).
 func writeCache(key string, c *Cache) error {
 	dir := cacheDir()
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
 	b, err := json.Marshal(c)
@@ -116,10 +116,10 @@ func spawnRefresh(key, dir, branch string) {
 // re-acquire it. The tiny release→child-acquire gap can at worst let through one
 // extra spawn, vs. the dozens the guard prevents.
 func refreshSlotFree(key string) bool {
-	if err := os.MkdirAll(cacheDir(), 0o755); err != nil {
+	if err := os.MkdirAll(cacheDir(), 0o700); err != nil {
 		return true // can't probe — fall through to spawning
 	}
-	lf, err := os.OpenFile(lockPath(key), os.O_CREATE|os.O_RDWR, 0o644)
+	lf, err := os.OpenFile(lockPath(key), os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return true
 	}
@@ -142,11 +142,11 @@ func runRefresh(key, dir, branch string) {
 	if key == "" {
 		return
 	}
-	if err := os.MkdirAll(cacheDir(), 0o755); err != nil {
+	if err := os.MkdirAll(cacheDir(), 0o700); err != nil {
 		return
 	}
 
-	lf, err := os.OpenFile(lockPath(key), os.O_CREATE|os.O_RDWR, 0o644)
+	lf, err := os.OpenFile(lockPath(key), os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return
 	}

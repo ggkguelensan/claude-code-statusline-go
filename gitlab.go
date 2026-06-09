@@ -81,7 +81,8 @@ func fetchMR(ctx context.Context, dir, branch string) *MR {
 // glabAPI runs `glab api <path>` in dir and decodes the JSON body into v.
 func glabAPI(ctx context.Context, dir, path string, v any) bool {
 	cmd := exec.CommandContext(ctx, "glab", "api", path)
-	cmd.Dir = dir // glab reads host + project from the origin remote here
+	cmd.Dir = dir           // glab reads host + project from the origin remote here
+	cmd.Env = scrubbedEnv() // glab uses its own GitLab token, never the Asana PAT
 	out, err := cmd.Output()
 	if err != nil {
 		if os.Getenv("CCSL_DEBUG") != "" {

@@ -14,11 +14,42 @@ import (
 func git(cwd string, args ...string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "git", append([]string{"-C", cwd}, args...)...).Output()
+	// git runs with -C inside cwd, which may be an attacker-controlled repo whose
+	// local config can name programs git will exec (core.fsmonitor on `status`,
+	// hooks, aliases). Neutralize those vectors and hand git an environment with
+	// the Asana token stripped, so a hostile repo can neither run code with our
+	// secrets present nor read the token out of git's environment.
+	// GIT_OPTIONAL_LOCKS=0 keeps us from touching the index of a repo we inspect.
+	full := append([]string{"-C", cwd, "-c", "core.fsmonitor=", "-c", "core.hooksPath=/dev/null"}, args...)
+	cmd := exec.CommandContext(ctx, "git", full...)
+	cmd.Env = append(scrubbedEnv(), "GIT_OPTIONAL_LOCKS=0")
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// secretEnvKeys are env vars only the Asana fetch needs; every other subprocess
+// (git, glab) runs without them so a repo run inside cannot leak the token.
+var secretEnvKeys = map[string]bool{
+	"ASANA_ACCESS_TOKEN": true,
+	"ASANA_TOKEN":        true,
+	"ASANA_PAT":          true,
+}
+
+// scrubbedEnv is os.Environ() with the Asana secrets removed — the environment
+// handed to git and glab, neither of which needs an Asana credential.
+func scrubbedEnv() []string {
+	src := os.Environ()
+	out := make([]string, 0, len(src))
+	for _, kv := range src {
+		if i := strings.IndexByte(kv, '='); i >= 0 && secretEnvKeys[kv[:i]] {
+			continue
+		}
+		out = append(out, kv)
+	}
+	return out
 }
 
 // RepoInfo holds the git facts a single directory contributes to the status line.

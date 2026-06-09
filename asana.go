@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // AsanaTask is the cached Asana state shown in the status line.
@@ -23,6 +24,16 @@ type AsanaTask struct {
 }
 
 const asanaBase = "https://app.asana.com/api/1.0"
+
+// asanaClient carries the PAT, so it gets an explicit timeout (independent of the
+// caller's context) and refuses to follow redirects — the Bearer token must never
+// be replayed to a host other than app.asana.com.
+var asanaClient = &http.Client{
+	Timeout: 10 * time.Second,
+	CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
 
 // asanaConfig is resolved from env (with Ticketon-friendly defaults) so the
 // standalone binary can reach Asana without the claude.ai MCP.
@@ -126,16 +137,17 @@ func asanaGet(ctx context.Context, token, rawURL string, v any) bool {
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/json")
-	res, err := http.DefaultClient.Do(req)
+	res, err := asanaClient.Do(req)
 	if err != nil {
 		return false
 	}
 	defer res.Body.Close()
+	body := io.LimitReader(res.Body, 1<<20) // bound an oversized/hostile response
 	if res.StatusCode != http.StatusOK {
-		io.Copy(io.Discard, res.Body)
+		io.Copy(io.Discard, body)
 		return false
 	}
-	return json.NewDecoder(res.Body).Decode(v) == nil
+	return json.NewDecoder(body).Decode(v) == nil
 }
 
 type asanaTaskJSON struct {

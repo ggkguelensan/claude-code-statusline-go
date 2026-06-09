@@ -194,7 +194,7 @@ func TestRenderSkipsOptionalSegments(t *testing.T) {
 	// Point at a non-repo dir so the result doesn't depend on where `go test`
 	// runs (the package dir is itself a git repo).
 	in.Workspace.CurrentDir = t.TempDir()
-	out := plain(render(in, 0))
+	out := plain(render(in, 0, 0))
 	// Optional segments (git/PR/asana/MR/rate-limits) are skipped when absent,
 	// but ctx + changes always render.
 	want := "O 4.8 1M | ctx 0.0k (0%) | +0/-0 · 0m"
@@ -204,6 +204,72 @@ func TestRenderSkipsOptionalSegments(t *testing.T) {
 	for _, gone := range []string{"🌿", "🌳", "MR!", "PR#", "FTP-", "h "} {
 		if strings.Contains(out, gone) {
 			t.Errorf("bare input should not contain %q: %q", gone, out)
+		}
+	}
+}
+
+func TestVisibleWidth(t *testing.T) {
+	cases := []struct {
+		in   string
+		want int
+	}{
+		{"abc", 3},
+		{grn + "abc" + rst, 3},        // ANSI escapes don't count
+		{"🌳", 2},                      // emoji is two columns
+		{"🌳 feat", 7},                 // emoji(2) + space + "feat"(4)
+		{"ветка", 5},                  // Cyrillic is one column each
+		{"FTP-3853 Backlog", 16},      // plain ASCII
+	}
+	for _, c := range cases {
+		if got := visibleWidth(c.in); got != c.want {
+			t.Errorf("visibleWidth(%q) = %d, want %d", c.in, got, c.want)
+		}
+	}
+}
+
+func TestAssembleWraps(t *testing.T) {
+	model := "O 4.8 1M 🚀xh"
+	git := "🌳 feat/FTP-3678-zoom-venue-image"
+	asana := "FTP-3678 To Do"
+	ctx := "ctx 0.0k (0%)"
+	changes := "+0/-0 · 0m"
+
+	// Wide terminal (or unknown width): everything stays on one line.
+	for _, cols := range []int{0, 200} {
+		one := assemble(model, git, asana, "", "", ctx, changes, "", cols)
+		if strings.Contains(one, "\n") {
+			t.Errorf("cols=%d should not wrap: %q", cols, plain(one))
+		}
+	}
+
+	// Narrow terminal (the one-line form is ~95 cols, so 66 forces a wrap):
+	// task + branch + session drop to a second row, task before the branch.
+	const cols = 66
+	two := assemble(model, git, asana, "", "", ctx, changes, "", cols)
+	lines := strings.Split(plain(two), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("want 2 rows in narrow terminal, got %d: %q", len(lines), plain(two))
+	}
+	if !strings.Contains(lines[1], "FTP-3678 To Do") ||
+		!strings.Contains(lines[1], "feat/FTP-3678") ||
+		!strings.Contains(lines[1], "+0/-0") {
+		t.Errorf("row 2 should carry task + branch + session: %q", lines[1])
+	}
+	if task, branch := strings.Index(lines[1], "FTP-3678 To Do"), strings.Index(lines[1], "feat/FTP-3678"); task >= branch {
+		t.Errorf("row 2 should put the task code before the branch name: %q", lines[1])
+	}
+	if strings.Contains(lines[0], "FTP-3678 To Do") ||
+		strings.Contains(lines[0], "feat/FTP-3678") ||
+		strings.Contains(lines[0], "+0/-0") {
+		t.Errorf("row 1 should not carry task/branch/session: %q", lines[0])
+	}
+	if !strings.Contains(lines[0], "O 4.8 1M") || !strings.Contains(lines[0], "ctx") {
+		t.Errorf("row 1 should keep model + context: %q", lines[0])
+	}
+	// Splitting keeps each row within the width here (row 2 is ~63 cols).
+	for i, ln := range strings.Split(two, "\n") {
+		if w := visibleWidth(ln); w > cols {
+			t.Errorf("row %d width %d exceeds cols=%d: %q", i, w, cols, plain(ln))
 		}
 	}
 }
