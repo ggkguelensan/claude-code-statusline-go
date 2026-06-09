@@ -1,6 +1,6 @@
 // Command claude-code-statusline renders the Claude Code status line.
 //
-//	O 4.8 1M ⚡xh | 🌿 branch* | FTP-3853 Backlog | MR!1297 ✓ | ctx 31% | $1.23 · +156/-23 · 12m | 5h 23% · 7d 41%
+//	O 4.8 1M 🚀xh | 🌿 branch* | FTP-3853 Backlog | MR!1297 ✓ | ctx 31% | +156/-23 · 12m | 5h 23% · 7d 41%
 //
 // It reads the status-line JSON on stdin (see
 // https://code.claude.com/docs/en/statusline) and writes one line to stdout.
@@ -73,7 +73,7 @@ func render(in *Input, now float64) string {
 		mrSeg,
 		segPR(in),
 		segContext(in),
-		segCost(in),
+		segChanges(in),
 		segRateLimits(in, now),
 	}
 

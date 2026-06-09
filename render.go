@@ -14,9 +14,18 @@ var prIcons = map[string]string{
 	"pending":           " 👀",
 }
 
-// effortAbbr abbreviates the reasoning-effort level.
-var effortAbbr = map[string]string{
-	"low": "lo", "medium": "med", "high": "hi", "xhigh": "xh", "max": "max",
+// effortGlyph is the icon + abbreviation shown for a reasoning-effort level.
+type effortGlyph struct{ icon, abbr string }
+
+// effortStyle maps each reasoning-effort level to its own glyph. The icon
+// escalates with intensity — sprout → bolt → fire → rocket → blast — so the
+// level reads at a glance instead of every level sharing one ⚡.
+var effortStyle = map[string]effortGlyph{
+	"low":    {"🌱", "lo"},
+	"medium": {"⚡", "med"},
+	"high":   {"🔥", "hi"},
+	"xhigh":  {"🚀", "xh"},
+	"max":    {"💥", "max"},
 }
 
 var ctxReplace = regexp.MustCompile(`\((\d+[KM]) context\)`)
@@ -63,11 +72,11 @@ func segModel(in *Input) string {
 	}
 	s := bld + cyn + shortModel(name) + rst
 	if in.Effort != nil && in.Effort.Level != "" {
-		abbr, ok := effortAbbr[in.Effort.Level]
+		g, ok := effortStyle[in.Effort.Level]
 		if !ok {
-			abbr = in.Effort.Level
+			g = effortGlyph{"⚡", in.Effort.Level} // unknown level keeps the bolt
 		}
-		s += " " + mag + "⚡" + abbr + rst
+		s += " " + mag + g.icon + g.abbr + rst
 	}
 	return s
 }
@@ -172,10 +181,10 @@ func segContext(in *Input) string {
 	return fmt.Sprintf("ctx %s%s%s %s(%d%%)%s%s", color, tok, rst, dim, pct, rst, over)
 }
 
-// segCost builds the cost · +/- lines · duration segment. Always rendered
-// (matches the Python original): a missing cost field still prints
-// "$0.00 · +0/-0 · 0m".
-func segCost(in *Input) string {
+// segChanges builds the +/- lines · duration segment. Always rendered: a
+// missing cost field still prints "+0/-0 · 0m". The dollar cost the Python
+// original led with is intentionally omitted.
+func segChanges(in *Input) string {
 	var c CostInfo
 	if in.Cost != nil {
 		c = *in.Cost
@@ -187,8 +196,8 @@ func segCost(in *Input) string {
 	} else {
 		t = fmt.Sprintf("%dm", mins)
 	}
-	return fmt.Sprintf("$%.2f%s%s+%d%s/%s-%d%s%s%s",
-		c.TotalCostUSD, dot, grn, c.TotalLinesAdded, rst, red, c.TotalLinesRemoved, rst, dot, t)
+	return fmt.Sprintf("%s+%d%s/%s-%d%s%s%s",
+		grn, c.TotalLinesAdded, rst, red, c.TotalLinesRemoved, rst, dot, t)
 }
 
 // segRateLimits builds the subscription rate-limit countdown segment.

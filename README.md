@@ -3,14 +3,14 @@
 A compact status line for [Claude Code](https://code.claude.com), rewritten in Go. Single static binary, no runtime dependencies. Beyond the original Python version it pulls in **the GitLab merge request** and **the Asana task** you're working on.
 
 ```
-O 4.8 1M ⚡xh | 🌿 test/e2e-screenshot-toolkit-miniapp | FTP-3853 Backlog | MR!1297 ✓ | ctx 78.0k (7%) | $2.17 · +194/-77 · 1h9m | 1.5h 22% · 2.7d 41%
+O 4.8 1M 🚀xh | 🌿 test/e2e-screenshot-toolkit-miniapp | FTP-3853 Backlog | MR!1297 ✓ | ctx 78.0k (7%) | +194/-77 · 1h9m | 1.5h 22% · 2.7d 41%
 ```
 
 ## What it shows
 
 | Segment | Example | Notes |
 |---|---|---|
-| Model + effort | `O 4.8 1M ⚡xh` | `Opus 4.8 (1M context)` → `O 4.8 1M`; reasoning effort abbreviated (`xhigh` → `xh`) |
+| Model + effort | `O 4.8 1M 🚀xh` | `Opus 4.8 (1M context)` → `O 4.8 1M`; effort gets a per-level glyph + abbr: `🌱lo` · `⚡med` · `🔥hi` · `🚀xh` · `💥max` |
 | Git | `🌿 main*` | `*` = uncommitted changes; detached HEAD shown as `@abc1234` |
 | Worktree | `🌳 agent-1 ← main` | 🌳 = linked worktree; `← main` = source branch in `--worktree` sessions |
 | Multi-repo | `🌿 afisha:dev* · 🌳 cmux:agent-1` | one entry per repo when dirs are added via `/add-dir` |
@@ -18,7 +18,7 @@ O 4.8 1M ⚡xh | 🌿 test/e2e-screenshot-toolkit-miniapp | FTP-3853 Backlog | M
 | **GitLab MR** | `MR!1297 ✓` | the open MR whose source branch is the current branch; `📝` draft · `✓`/`✗`/`●` pipeline passed/failed/running · `❗` conflicts · `💬` unresolved discussions |
 | GitHub PR | `PR#12 👀` | ✅ approved · ❌ changes requested · 📝 draft · 👀 pending (from Claude Code's own `pr` field) |
 | Context | `ctx 92.0k (9%)` | absolute tokens first; green <80k, yellow 80–100k, red >100k; ⚠ above 200k |
-| Session | `$2.17 · +194/-77 · 1h9m` | cost, lines added/removed, duration |
+| Session | `+194/-77 · 1h9m` | lines added/removed, session duration |
 | Rate limits | `1.5h 22% · 2.7d 41%` | time until the 5-hour / 7-day window resets + used %; yellow ≥70%, red ≥90% (Pro/Max only) |
 
 Segments with no data are skipped — no empty placeholders.

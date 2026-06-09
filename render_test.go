@@ -56,15 +56,38 @@ func TestSegContextColors(t *testing.T) {
 	}
 }
 
-func TestSegCost(t *testing.T) {
+func TestSegChanges(t *testing.T) {
 	in := Input{}
 	in.Cost = &CostInfo{TotalCostUSD: 2.17, TotalLinesAdded: 194, TotalLinesRemoved: 77, TotalDurationMS: 4_140_000}
-	if got, want := plain(segCost(&in)), "$2.17 · +194/-77 · 1h9m"; got != want {
-		t.Errorf("segCost = %q, want %q", got, want)
+	// dollar cost is intentionally dropped; only +/- lines and duration remain.
+	if got, want := plain(segChanges(&in)), "+194/-77 · 1h9m"; got != want {
+		t.Errorf("segChanges = %q, want %q", got, want)
 	}
 	in.Cost.TotalDurationMS = 300_000
-	if got, want := plain(segCost(&in)), "$2.17 · +194/-77 · 5m"; got != want {
-		t.Errorf("segCost (minutes) = %q, want %q", got, want)
+	if got, want := plain(segChanges(&in)), "+194/-77 · 5m"; got != want {
+		t.Errorf("segChanges (minutes) = %q, want %q", got, want)
+	}
+	if got := segChanges(&in); strings.Contains(got, "$") {
+		t.Errorf("segChanges must not contain a dollar cost: %q", got)
+	}
+}
+
+func TestSegModelEffort(t *testing.T) {
+	cases := map[string]string{
+		"low":     "O 4.8 1M 🌱lo",
+		"medium":  "O 4.8 1M ⚡med",
+		"high":    "O 4.8 1M 🔥hi",
+		"xhigh":   "O 4.8 1M 🚀xh",
+		"max":     "O 4.8 1M 💥max",
+		"unknown": "O 4.8 1M ⚡unknown", // unrecognised level keeps the bolt
+	}
+	for level, want := range cases {
+		in := &Input{}
+		in.Model.DisplayName = "Opus 4.8 (1M context)"
+		in.Effort = &EffortInfo{Level: level}
+		if got := plain(segModel(in)); got != want {
+			t.Errorf("segModel(effort=%q) = %q, want %q", level, got, want)
+		}
 	}
 }
 
@@ -168,10 +191,13 @@ func TestTruncate(t *testing.T) {
 func TestRenderSkipsOptionalSegments(t *testing.T) {
 	in := &Input{}
 	in.Model.DisplayName = "Opus 4.8 (1M context)"
+	// Point at a non-repo dir so the result doesn't depend on where `go test`
+	// runs (the package dir is itself a git repo).
+	in.Workspace.CurrentDir = t.TempDir()
 	out := plain(render(in, 0))
 	// Optional segments (git/PR/asana/MR/rate-limits) are skipped when absent,
-	// but ctx + cost always render — matching the Python original.
-	want := "O 4.8 1M | ctx 0.0k (0%) | $0.00 · +0/-0 · 0m"
+	// but ctx + changes always render.
+	want := "O 4.8 1M | ctx 0.0k (0%) | +0/-0 · 0m"
 	if out != want {
 		t.Errorf("render = %q, want %q", out, want)
 	}
