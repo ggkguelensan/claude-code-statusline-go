@@ -1,0 +1,15 @@
+# Build artifacts
+/claude-code-statusline
+/ccsl
+*.exe
+*.out
+
+# Go
+/vendor/
+*.test
+*.prof
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
